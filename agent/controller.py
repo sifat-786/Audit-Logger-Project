@@ -43,19 +43,11 @@ load_dotenv()
 # LLM INSTANCE
 # =====================================================
 
-if os.getenv("ANTHROPIC_API_KEY"):
-    from langchain_anthropic import ChatAnthropic
-    _llm = ChatAnthropic(
-        model="claude-3-5-sonnet-20241022",
-        temperature=0,
-        api_key=os.getenv("ANTHROPIC_API_KEY")
-    )
-else:
-    _llm = ChatGroq(
-        groq_api_key=os.getenv("GROQ_API_KEY"),
-        model_name="llama-3.3-70b-versatile",
-        temperature=0
-    )
+_llm = ChatGroq(
+    groq_api_key=os.getenv("GROQ_API_KEY"),
+    model_name="llama-3.3-70b-versatile",
+    temperature=0
+)
 
 # =====================================================
 # LANGCHAIN TOOLS REGISTRY

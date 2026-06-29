@@ -481,10 +481,7 @@ with tab_chat:
     st.markdown('<div style="padding: 0;">', unsafe_allow_html=True)
     
     # Dynamic model info
-    if os.getenv("ANTHROPIC_API_KEY"):
-        model_sub = "Claude 3.5 Sonnet · Anthropic · Safe Routing"
-    else:
-        model_sub = "llama-3.3-70b-versatile · Groq · Safe Routing"
+    model_sub = "Llama 3.3 70B · Groq · Safe Routing"
         
     st.markdown(f"""
 <div class="chat-header">

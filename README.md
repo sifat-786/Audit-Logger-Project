@@ -8,7 +8,7 @@ The platform guarantees predictable agent execution, human-in-the-loop validatio
 
 ## 🌟 Key Features
 
-* **Controlled Intent Routing**: Replaces unpredictable ReAct loops with a deterministic single-turn router driven by Groq LLaMA 3.3 70B or Claude 3.5 Sonnet.
+* **Controlled Intent Routing**: Replaces unpredictable ReAct loops with a deterministic single-turn router driven by Groq LLaMA 3.3 70B.
 * **Risk Classification Matrix**: Evaluates and routes agent actions into four risk tiers:
   * ⚪ `NONE`: Normal conversation or math calculations (Auto-allowed).
   * 🟢 `LOW`: Read-only queries like checking emails or reading local files (Auto-allowed).
@@ -89,7 +89,6 @@ A study involving **5 professional participants** measuring the efficiency and i
 Make sure python is installed and your API keys are configured in your `.env` file in the root directory:
 ```bash
 GROQ_API_KEY=your-groq-api-key
-ANTHROPIC_API_KEY=your-anthropic-api-key
 ```
 
 ### 2. Launch Streamlit Dashboard

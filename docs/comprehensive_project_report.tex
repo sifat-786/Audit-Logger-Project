@@ -113,7 +113,7 @@ The system architecture boundaries are outlined in Figure 1.
 |                  CONTROLLED INTENT ROUTER (controller.py)               |
 +-------------------+------------------+--------------------+-------------+
 |  Query Validator  |  Intent Router   | Governance Engine  |  Scheduler  |
-|  (validator.py)   |  (Groq/Claude)   | (decision_engine.py)| (threads)   |
+|  (validator.py)   |      (Groq)      | (decision_engine.py)| (threads)   |
 +-------------------+------------------+--------------------+-------------+
         |                  |                    |                  |
         v                  v                    v                  v
@@ -137,7 +137,7 @@ The system architecture boundaries are outlined in Figure 1.
                            v                      v
                   +------------------+  +-------------------+
                   | Response Synthesis| | Database Stores   |
-                  | (Groq / Claude)  |  | (Disk + SQLite)   |
+                  |      (Groq)      |  | (Disk + SQLite)   |
                   +------------------+  +-------------------+
 \end{verbatim}
 \begin{center}
@@ -158,7 +158,7 @@ A typical request progresses through the following stages:
 \begin{enumerate}
     \item \textbf{Ingress}: The user types a query (e.g., \textit{``Send an email to user@example.com containing report.txt''}) in the text input box.
     \item \textbf{Validation check}: \texttt{query\_validator.py} runs regex-based checks to detect domain spelling errors (e.g., \texttt{gmal.com}) or keyword typos, returning correction warnings.
-    \item \textbf{LLM Intent Parsing}: The query is sent to the LLM (Llama 3.3 or Claude 3.5) with tool schemas bound. The LLM extracts the target tool (\texttt{send\_email}) and arguments (\texttt{to="user@example.com"}, \texttt{body="..."}).
+    \item \textbf{LLM Intent Parsing}: The query is sent to the LLM (Llama 3.3) with tool schemas bound. The LLM extracts the target tool (\texttt{send\_email}) and arguments (\texttt{to="user@example.com"}, \texttt{body="..."}).
     \item \textbf{Governance Interception}: The router passes the tool name to \texttt{risk\_classifier.py}, which maps it to \texttt{HIGH} risk. \texttt{decision\_engine.py} flags it as \texttt{need approval}.
     \item \textbf{Audit Logging (Pending State)}: The logger writes a record to the databases with status \texttt{SKIPPED} and decision \texttt{need approval}.
     \item \textbf{UI Render (Halted state)}: The dashboard displays the pending trace and provides an ``Approve \& Execute'' button.
