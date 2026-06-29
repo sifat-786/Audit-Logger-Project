@@ -1,0 +1,30 @@
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Environment files
+.env
+
+# Credentials & Tokens
+credentials.json
+token.json
+token.json.bak
+
+# Python cache & compiled files
+__pycache__/
+*/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Editor configs
+.vscode/
+.idea/
+
+# Local databases and runtime logs
+logs/audit_log.json
+logs/audit_log.csv
+logs/audit_log.db
+evaluation/scenario_results.json
+evaluation/scenario_evaluation_report.md

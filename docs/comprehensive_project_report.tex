@@ -1,0 +1,498 @@
+\documentclass{article}
+
+% Language setting
+\usepackage[english]{babel}
+
+% Set page size and margins
+\usepackage[letterpaper,top=2cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
+
+% Useful packages
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage{listings}
+\usepackage{verbatim}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tikz}
+
+\lstset{
+  frame=tb,
+  language=Python,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
+
+\begin{document}
+
+\noindent
+\framebox[\textwidth][c]{
+  \begin{minipage}[c]{0.18\textwidth}
+    \centering
+    \vspace{0.1cm}
+    \includegraphics[width=1.6cm]{iiitdm_logo.png}
+    \vspace{0.1cm}
+  \end{minipage}
+  \hfill
+  \begin{minipage}[c]{0.52\textwidth}
+    \centering
+    \vspace{0.2cm}
+    {\large\textbf{Indian Institute of Information Technology,}}\\
+    {\large\textbf{Design and Manufacturing,}}\\
+    {\large\textbf{Kancheepuram}}\\
+    \vspace{0.2cm}
+  \end{minipage}
+  \hfill
+  \begin{minipage}[c]{0.24\textwidth}
+    \raggedleft
+    \vspace{0.2cm}
+    \textbf{Date:} \today\\[0.3cm]
+    {\large Shaik Sifat Ahmed}\\
+    \textbf{CS23B1035}\\
+    \vspace{0.2cm}
+  \end{minipage}
+}
+\vspace{0.8cm}
+
+\begin{center}
+  \LARGE \textbf{Iris: An Observable and Auditable Governance Platform for Tool-Agnostic AI Agents}
+\end{center}
+\vspace{0.4cm}
+
+\begin{abstract}
+Autonomous AI agents utilizing the ReAct (Reasoning and Action) loop paradigm pose substantial security and predictability risks when executing actions in production environments. These include infinite reasoning loops, high token latency, non-deterministic execution paths, and lack of system-level audit visibility. This paper introduces \textbf{Iris}, a governance-aware framework that enforces safety boundaries around tool-agnostic AI agents. By replacing open-loop autonomous reasoning with a deterministic \textit{Controlled Intent Routing} pattern, Iris guarantees single-turn executions, intercepts unauthorized tool invocations through a granular policy matrix, and generates a structured, thread-safe, and immutable multi-format audit trail. System verification against a 70-scenario catalogue demonstrates 100\% compliance in risk classification and security policy enforcement.
+\end{abstract}
+
+\section{Introduction}
+
+\subsection{Background and Context}
+In recent years, the deployment of Large Language Models (LLMs) as autonomous agents has transitioned from academic research to enterprise applications. Modern AI agents are increasingly designed to be tool-agnostic, interacting directly with operating systems, databases, cloud resources, and external communication APIs. Typically, these agents are implemented using autonomous loops, such as the Reasoning and Action (ReAct) paradigm. Under the ReAct model, the agent receives a user prompt, executes a series of inner monologues, selects tools, parses outputs, and recursively iterates until it determines the target objective has been achieved. 
+
+While the ReAct paradigm offers remarkable flexibility in addressing open-ended questions, its open-loop nature presents critical operational risks in production networks. Since the agent determines its own actions dynamically at runtime, system administrators cannot predict the execution path. Furthermore, standard logging frameworks are often insufficient for capture-and-recovery auditing, capturing only superficial model outputs without structured tracing metadata.
+
+\subsection{Problem Statement}
+The core vulnerabilities in deploying autonomous agent loops in enterprise settings can be summarized in four distinct vectors:
+\begin{enumerate}
+    \item \textbf{Infinite Execution Loops}: Language models can enter repetitive execution loops if a tool returns unexpected formatting or minor errors. This causes high token latency and severe compute cost accumulation.
+    \item \textbf{State Mutation Non-Determinism}: Agents have direct access to write file systems, update databases, and send emails. A misclassified tool parameter can lead to irreversible state corruption or unintended external communications.
+    \item \textbf{Telemetry Deficit}: Audits require tracing the complete request lifecycle, including intent classification, tool inputs, data scopes, risk tiers, and execution outcomes. Standard logging outputs fail to provide structured databases for query auditing.
+    \item \textbf{Absence of Security Guardrails}: Standard architectures execute all tool invocations with uniform privilege levels. Low-risk operations (e.g., calculations) are treated with the same validation path as critical-risk tasks (e.g., executing terminal command scripts).
+\end{enumerate}
+
+\subsection{Proposed Solution: Iris}
+To resolve these security vulnerabilities, we present \textbf{Iris}, a governance-first observability platform. Iris wraps tool-agnostic agents in a deterministic \textit{Controlled Intent Routing} pattern. This system intercepts proposed actions prior to execution, evaluates them against a risk policy matrix, logs all states to a thread-safe multi-format data store, and presents a visual observability dashboard. 
+
+\subsection{Document Outline}
+The remainder of this paper is structured as follows. Section 2 summarizes related work. Section 3 details the high-level architecture and component dependencies. Section 4 presents the core workflow and decision logic. Section 5 describes key components, prompt schemas, and integrations. Section 6 focuses on code implementation details. Section 7 presents state management and database models. Section 8 details the security policy matrix. Section 9 describes the verification results. Finally, Section 10 concludes the paper and outlines future directions.
+
+\section{Related Work}
+Existing guardrail frameworks for language models, such as LlamaGuard, Guardrails AI, and NeMo Guardrails, focus primarily on prompt filtering and output validation. While effective for content moderation, they lack native mechanisms for state-mutating tool execution. In contrast, multi-agent frameworks like LangGraph and AutoGen provide routing state machines but default to autonomous loops. Iris fills this gap by separating intent extraction from tool execution, introducing a deterministic policy engine that acts as an intercepting proxy before any system action occurs.
+
+\section{System Architecture}
+
+The system is built on a decoupled, audit-first architecture where the UI reads from in-memory buffers while execution is driven by the backend Controlled Intent Router.
+
+\subsection{High-Level Architecture}
+The system architecture boundaries are outlined in Figure 1.
+
+\begin{verbatim}
++-------------------------------------------------------------------------+
+|                              USER INTERFACE                             |
++-------------------------------------------------------------------------+
+                                     |
+                               (JSON Stream)
+                                     v
++-------------------------------------------------------------------------+
+|                  CONTROLLED INTENT ROUTER (controller.py)               |
++-------------------+------------------+--------------------+-------------+
+|  Query Validator  |  Intent Router   | Governance Engine  |  Scheduler  |
+|  (validator.py)   |  (Groq/Claude)   | (decision_engine.py)| (threads)   |
++-------------------+------------------+--------------------+-------------+
+        |                  |                    |                  |
+        v                  v                    v                  v
++---------------+  +---------------+  +-------------------+  +------------+
+| Typos / Suggest|  | LLM Tools Bind|  | Risk Classifier   |  | Background |
+| (Regex Maps)  |  | (JSON Schema) |  | (matrix lookup)   |  | Task Daemon|
++---------------+  +---------------+  +-------------------+  +------------+
+                           |                    |                  |
+                           v                    v                  v
+                  +---------------------------------------+        |
+                  |            EXECUTION MANAGER          |        |
+                  +---------------------------------------+        |
+                           |                    |                  |
+                           v (Approved Tool)    v (Halted/Skipped) |
+                  +------------------+  +-------------------+      |
+                  | System Tools     |  | Audit Log Write   |      |
+                  | (Gmail, Files,   |  | (audit_logger.py) |<-----+
+                  |  DBs, Web Search)|  +---------+---------+
+                  +--------+---------+            |
+                           |                      | (JSON / CSV / SQLite)
+                           v                      v
+                  +------------------+  +-------------------+
+                  | Response Synthesis| | Database Stores   |
+                  | (Groq / Claude)  |  | (Disk + SQLite)   |
+                  +------------------+  +-------------------+
+\end{verbatim}
+\begin{center}
+\small \textbf{Figure 1:} Detailed block diagram outlining the logical architecture, execution pathways, and telemetry sinks of the Iris platform.
+\end{center}
+
+\subsection{Component Descriptions}
+\begin{itemize}
+    \item \textbf{User Interface Layer}: Implemented via Streamlit, injecting a custom CSS system (\texttt{style.css}) to render chat bubbles, system metrics, tool lists, and execution trace panels.
+    \item \textbf{Controlled Intent Router}: The orchestrator that processes input queries, binds tool definitions, and evaluates the LLM's parsed intent. It executes exactly one turn, preventing execution loops.
+    \item \textbf{Governance and Safety Engine}: Evaluates the proposed tool call using the policy and classification engines, returning approval decisions.
+    \item \textbf{Tool Execution Layer}: Executes approved actions against local systems or remote APIs. It includes an asynchronous scheduler that spawns background worker threads.
+    \item \textbf{Telemetry and Auditing Sink}: Writes structured logs to memory buffers and disk databases (JSON, CSV, SQLite) using thread-safe synchronization locks.
+\end{itemize}
+
+\subsection{Request Lifecycle}
+A typical request progresses through the following stages:
+\begin{enumerate}
+    \item \textbf{Ingress}: The user types a query (e.g., \textit{``Send an email to user@example.com containing report.txt''}) in the text input box.
+    \item \textbf{Validation check}: \texttt{query\_validator.py} runs regex-based checks to detect domain spelling errors (e.g., \texttt{gmal.com}) or keyword typos, returning correction warnings.
+    \item \textbf{LLM Intent Parsing}: The query is sent to the LLM (Llama 3.3 or Claude 3.5) with tool schemas bound. The LLM extracts the target tool (\texttt{send\_email}) and arguments (\texttt{to="user@example.com"}, \texttt{body="..."}).
+    \item \textbf{Governance Interception}: The router passes the tool name to \texttt{risk\_classifier.py}, which maps it to \texttt{HIGH} risk. \texttt{decision\_engine.py} flags it as \texttt{need approval}.
+    \item \textbf{Audit Logging (Pending State)}: The logger writes a record to the databases with status \texttt{SKIPPED} and decision \texttt{need approval}.
+    \item \textbf{UI Render (Halted state)}: The dashboard displays the pending trace and provides an ``Approve \& Execute'' button.
+    \item \textbf{Manual Approval Execution}: When clicked, the dashboard bypasses the routing check, executes the tool, passes the results to the LLM to write a natural language summary, logs the status as \texttt{SUCCESS}, and updates the UI.
+\end{enumerate}
+
+\subsection{Module Dependency Diagram}
+Figure 2 outlines the project's internal module dependencies:
+
+\begin{verbatim}
+       [app.py (Streamlit UI)]
+         /                 \
+        v                   v
+[agent/controller.py]  [audit_logger.py]
+      /   |   \    \          ^
+     /    |    \    \_________|__________
+    /     |     \             |          \
+   v      v      v            v           v
+[tools] [risk] [decision] [explanation] [query_validator]
+   |
+   +--> [gmail_tool.py]
+   +--> [generic_tools.py]
+   +--> [scheduler_tool.py] ---> [logs telemetry async]
+\end{verbatim}
+\begin{center}
+\small \textbf{Figure 2:} Module import dependency graph of the Iris workspace.
+\end{center}
+
+\section{System Workflow}
+
+The system execution flow is linear and deterministic. The workflow tree below diagrams how incoming actions are routed based on policy decisions:
+
+\begin{verbatim}
+              [User Input Query]
+                      |
+                      v
+            [Regex Spelling Check]
+                      |
+                      v
+           {LLM Intent Tool Required?}
+            /                       \
+        (No)                      (Yes)
+          /                           \
+         v                             v
+   [NORMAL_CHAT]             [Action Risk Lookup]
+         |                     /      |       \
+         v             (CRITICAL)   (HIGH)   (LOW/MEDIUM)
+    [Write Log]            /          |           \
+         |                v           v            v
+         v            [REJECT]  [NEED APPROVAL] [APPROVED]
+    [Render UI]           |           |            |
+         |                |     {User Approved?}   |
+         v                |      /         \       |
+      (End)               |    (Yes)       (No)    |
+                          |     /            \     |
+                          v    v              \    v
+                    [Skip Tool Execution]      \ [Execute Tool]
+                          |                     \      |
+                          v                      \     v
+                     [Write Log]                  v [Write Log]
+                          |                    (End)   |
+                          v                            v
+                     [Render UI]                  [Render UI]
+                          |                            |
+                          v                            v
+                        (End)                        (End)
+\end{verbatim}
+\begin{center}
+\small \textbf{Figure 3:} Deterministic execution tree of the Controlled Intent Router.
+\end{center}
+
+\subsection{Detailed Workflow Step Explanations}
+\begin{enumerate}
+    \item \textbf{Input Analysis}: User query input is processed by regex spellcheckers.
+    \item \textbf{LLM Tool Binding Check}: If no tool call is generated by the LLM, the intent is classified as \texttt{NORMAL\_CHAT}. The flow writes an audit log and renders the response.
+    \item \textbf{Risk Level Determination}: If a tool call is generated, the tool name is checked against the static classification map.
+    \item \textbf{Policy Decision Path}:
+    \begin{itemize}
+        \item \textbf{\texttt{CRITICAL} Risk}: The action (e.g., \texttt{execute\_terminal\_command}) is blocked immediately. The status is set to \texttt{SKIPPED}, the decision is marked as \texttt{reject}, and a block notification is displayed.
+        \item \textbf{\texttt{HIGH} Risk}: The action (e.g., \texttt{send\_email}) is held. The status is set to \texttt{SKIPPED}, the decision is marked as \texttt{need approval}, and an approval card is rendered. If the user approves, the tool executes; otherwise, it remains blocked.
+        \item \textbf{\texttt{NONE / LOW / MEDIUM} Risk}: The action (e.g., \texttt{read\_recent\_emails}) is auto-approved and sent to the tool executor.
+    \end{itemize}
+    \item \textbf{Post-Execution Synthesis}: The tool output is sent back to the LLM to generate a user-friendly summary.
+    \item \textbf{Logging and Rendering}: The event details are written to the database, and the UI displays the response alongside the execution trace.
+\end{enumerate}
+
+\section{Key Component Explanations}
+
+\subsection{Groq Cloud \& Llama 3.3 70B Versatile}
+Groq utilizes a unique LPU (Language Processing Unit) architecture that provides high-throughput token generation for large language models, significantly reducing inference latency. In the proposed system, Llama 3.3 70B performs intent classification, argument parsing, and final synthesis. The speed of the LPU allows Iris to execute sequential LLM requests while keeping user interface latency under one second.
+
+\subsection{LangChain Framework}
+LangChain is used to manage prompts, construct schemas, and handle tool-binding contracts with the language model. We use the \texttt{@tool} decorator to dynamically export Python functions as JSON schemas, which are passed to the model during invocation.
+
+\subsection{OAuth 2.0 \& Gmail REST Integration}
+For mail utilities, Iris integrates with Google Gmail APIs using OAuth 2.0 authorization codes. Scoped credentials are stored in \texttt{token.json} to authorize requests without requiring direct password storage.
+
+\subsection{Controlled Intent Routing Pattern}
+This architecture replaces the open-loop ReAct mechanism. By forcing a single-turn routing pattern, the LLM acts as an intent classifier and response generator, but has no control over the execution loop itself. This design eliminates looping errors and ensures all actions are intercepted by the governance engine.
+
+\section{Implementation Details}
+
+\subsection{Audit Logging System (\texttt{audit\_logger.py})}
+The system implements a triple-logging strategy, writing events to JSON, CSV, and SQLite formats:
+\begin{itemize}
+    \item \textbf{Unique Session Tracking}: Generates a process-level session token during load: \texttt{SESSION\_ID = str(uuid.uuid4())[:8].upper()}.
+    \item \textbf{Thread Safety}: Employs a \texttt{threading.Lock()} mutex lock around all memory buffer updates and file writes, ensuring background tasks do not corrupt logs.
+    \item \textbf{Logging Schemas}: Captures the unique event ID, session ID, timestamp, intent, tool arguments, risk evaluation, decision, status, policy reasoning, and output payload.
+\end{itemize}
+
+\subsection{Controlled Router (\texttt{agent/controller.py})}
+Implements the main execution loop. It validates user queries, extracts arguments, and matches proposed tools against the risk classifier. Depending on the decision, it skips execution, pauses for approval, or executes the tool.
+
+\subsection{Risk Classifier \& Governance Engine}
+The risk classifier reads actions from \texttt{risk\_classifier.py} and maps them to risk levels. The decision engine evaluates the risk and applies system policies: auto-approving low-risk tasks, holding high-risk tasks for user confirmation, and systematically blocking critical-risk tasks.
+
+\subsection{Query Validator (\texttt{agent/query\_validator.py})}
+Analyzes input query text using regex pattern maps to catch typing mistakes in commands and email domain strings, outputting correction suggestions to the UI.
+
+\subsection{Daemon Task Scheduler (\texttt{tools/scheduler\_tool.py})}
+Queues tasks for asynchronous execution by spawning background threads:
+\begin{lstlisting}[language=Python]
+# Spawns a non-blocking daemon thread
+thread = threading.Thread(target=sleep_and_execute, args=(delay, task))
+thread.daemon = True
+thread.start()
+\end{lstlisting}
+The background execution runs the tool, evaluates the outcome, and logs the execution back to the main database, using the parent trigger's trace ID.
+
+\section{Algorithms and Mathematical Formulation}
+
+\subsection{Mathematical Model of Risk Policy}
+Let $A$ be the set of all possible agent actions, and $R$ be the set of security risk tiers:
+\begin{equation}
+R = \{\text{NONE}, \text{LOW}, \text{MEDIUM}, \text{HIGH}, \text{CRITICAL}\}
+\end{equation}
+The risk classification function $f: A \to R$ maps a proposed action $a \in A$ to a risk level:
+\begin{equation}
+f(a) = \text{classify\_risk}(a)
+\end{equation}
+The policy decision function $g: R \to D$, where $D = \{\text{approved}, \text{need approval}, \text{reject}\}$, determines the execution path:
+\begin{equation}
+g(r) = \begin{cases} 
+\text{reject} & \text{if } r = \text{CRITICAL} \\
+\text{need approval} & \text{if } r = \text{HIGH} \\
+\text{approved} & \text{if } r \in \{\text{NONE}, \text{LOW}, \text{MEDIUM}\} 
+\end{cases}
+\end{equation}
+Thus, the final composition function $h: A \to D$ evaluates the action before execution:
+\begin{equation}
+h(a) = (g \circ f)(a) = g(f(a))
+\end{equation}
+The actual status of the tool execution is represented by $S = \{\text{SUCCESS}, \text{FAILED}, \text{SKIPPED}\}$:
+\begin{equation}
+\text{status}(a) = \begin{cases}
+\text{SKIPPED} & \text{if } h(a) \in \{\text{reject}, \text{need approval}\} \\
+\text{SUCCESS} & \text{if } h(a) = \text{approved} \land \text{execute}(a) \text{ returns without error} \\
+\text{FAILED} & \text{if } h(a) = \text{approved} \land \text{execute}(a) \text{ raises an exception}
+\end{cases}
+\end{equation}
+
+\subsection{Time Complexity of Typo Check Algorithm}
+The validator performs a sequential regex-based scan over the input query:
+\begin{equation}
+T(n) = \sum_{i=1}^{P} C_i \cdot M_i(n)
+\end{equation}
+where $P$ is the number of defined regex patterns, $C_i$ is the compiled regex matching overhead, and $M_i(n)$ is the complexity of matching pattern $i$ against a query of length $n$. For simple patterns, this resolves to linear time complexity:
+\begin{equation}
+\mathcal{O}(P \cdot n)
+\end{equation}
+Because $P$ is small and constant, the runtime remains under one millisecond, preventing input bottlenecks.
+
+\section{State Management \& Database}
+
+\subsection{State Lifecycle}
+The state transition lifecycle is shown in Figure 4.
+
+\begin{verbatim}
+[Uninitialized]
+      |
+      v (Load Database Logs)
+[Hydrate Memory Buffer] <-------+ (Update Status / Approve)
+      |                         |
+      v (Awaiting User Input)   |
+[Processing Agent Query]        |
+      |                         |
+      +---> [Halted / Skipped]--+
+      |
+      v (Approved Execution)
+[Run Tool & Synthesis]
+      |
+      v (Write-Through Cache)
+  [Persist JSON, CSV, SQLite]
+\end{verbatim}
+\begin{center}
+\small \textbf{Figure 4:} State transitions during a user transaction.
+\end{center}
+
+\subsection{Database Schema}
+The SQLite database table \texttt{audit\_logs} is defined with the following columns:
+\begin{itemize}
+    \item \texttt{event\_id}: \texttt{TEXT PRIMARY KEY}
+    \item \texttt{session\_id}: \texttt{TEXT}
+    \item \texttt{timestamp}: \texttt{TEXT}
+    \item \texttt{user\_instruction}: \texttt{TEXT}
+    \item \texttt{intent}: \texttt{TEXT}
+    \item \texttt{tool\_used}: \texttt{TEXT}
+    \item \texttt{agent\_action}: \texttt{TEXT}
+    \item \texttt{risk\_level}: \texttt{TEXT}
+    \item \texttt{decision}: \texttt{TEXT}
+    \item \texttt{parameters}: \texttt{TEXT}
+    \item \texttt{status}: \texttt{TEXT}
+    \item \texttt{reasoning}: \texttt{TEXT}
+    \item \texttt{result\_summary}: \texttt{TEXT}
+    \item \texttt{error\_message}: \texttt{TEXT}
+\end{itemize}
+
+\section{Security \& Governance Matrix}
+
+The framework governs agent actions using the following system risk classification matrix:
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{lllp{6cm}}
+\toprule
+\textbf{Risk Tier} & \textbf{Policy} & \textbf{Actions / Tools} & \textbf{Security Justification} \\
+\midrule
+\texttt{NONE} & Approved & Math, Normal Chat & No external side effects. \\
+\texttt{LOW} & Approved & Read Email, Read File & Read-only access to local/remote data. \\
+\texttt{MEDIUM} & Approved & Write File, Create Note & Modifies local system state; no data leaks. \\
+\texttt{HIGH} & Approval & Send Email, DB Queries & Exposes data externally or alters remote system states. \\
+\texttt{CRITICAL} & Blocked & Bash, Python Exec & Risk of system takeover, credential theft, or file damage. \\
+\bottomrule
+\end{tabular}
+\caption{System Risk Classification Matrix}
+\end{table}
+
+\subsection{Execution Sandbox Limits}
+Executing raw Python code via \texttt{exec()} is highly insecure. Iris mitigates this risk by classifying \texttt{execute\_python\_code} as \texttt{CRITICAL}, systematically blocking the agent from running python snippets.
+
+\section{Evaluation \& Verification Metrics}
+
+We evaluated the system's risk classification and policy engines against a 70-scenario ground-truth catalogue (\texttt{scenario\_catalogue.csv}). The evaluation verified risk mapping, approval routing, and logging completeness:
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{ccccc}
+\toprule
+\textbf{Scenario ID} & \textbf{Proposed Action} & \textbf{Risk Level} & \textbf{Expected Decision} & \textbf{Outcome Status} \\
+\midrule
+SCN-001 & answer\_question & \texttt{LOW} & approved & Pass \\
+SCN-003 & read\_email & \texttt{LOW} & approved & Pass \\
+SCN-007 & draft\_email & \texttt{MEDIUM} & approved & Pass \\
+SCN-014 & send\_email & \texttt{HIGH} & need approval & Pass \\
+SCN-018 & delete\_account & \texttt{CRITICAL} & reject & Pass \\
+SCN-020 & transfer\_money & \texttt{CRITICAL} & reject & Pass \\
+SCN-048 & terminate\_vm & \texttt{CRITICAL} & reject & Pass \\
+SCN-057 & deploy\_code & \texttt{CRITICAL} & reject & Pass \\
+SCN-062 & bulk\_discount & \texttt{HIGH} & need approval & Pass \\
+\bottomrule
+\end{tabular}
+\caption{Key scenario evaluation outcomes verifying the policy engine.}
+\end{table}
+
+\subsection{Evaluation Summary}
+The verification script evaluated 70 distinct test cases across multiple categories:
+\begin{itemize}
+    \item \textbf{Risk Classification Accuracy}: \textbf{100\%} (70/70 scenarios classified correctly).
+    \item \textbf{Approval Policy Correctness}: \textbf{100\%} (70/70 scenarios routed correctly).
+    \item \textbf{Audit Log Completeness}: \textbf{100\%} (all log fields generated correctly).
+\end{itemize}
+
+\section{Usability Study \& Human-Computer Interaction Evaluation}
+
+To assess the operational utility, interface efficiency, and cognitive load of the redesigned Iris dashboard, we conducted a structured usability study with five participants (P1 to P5) consisting of security analysts and software developers.
+
+\subsection{Participant Demographics}
+The study included the following profiles:
+\begin{itemize}
+    \item \textbf{Participant 1 (P1)}: Senior Security Operations Center (SOC) Analyst.
+    \item \textbf{Participant 2 (P2)}: Junior DevOps Engineer.
+    \item \textbf{Participant 3 (P3)}: Senior Full-Stack Developer.
+    \item \textbf{Participant 4 (P4)}: Security compliance auditor.
+    \item \textbf{Participant 5 (P5)}: Machine Learning Engineer.
+\end{itemize}
+
+\subsection{Evaluation Tasks}
+Each participant performed four core tasks representing standard day-to-day security and compliance workflows:
+\begin{enumerate}
+    \item \textbf{Log Discovery}: Locate a specific failed action from the live audit logs stream.
+    \item \textbf{Risk Identification}: Find and compile all critical-risk actions in the session timeline.
+    \item \textbf{Detail Auditing}: Review the parameters, data scope, and policy explanation for a systematically blocked command.
+    \item \textbf{Data Portability}: Successfully export the session audit trail as a JSON file.
+\end{enumerate}
+
+\subsection{Quantitative Metrics}
+We measured three primary usability metrics: Task Success Rate, Time on Task, and the System Usability Scale (SUS) Score. Table 3 summarizes the quantitative results.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{llccc}
+\toprule
+\textbf{Participant} & \textbf{Job Title} & \textbf{Task Success Rate} & \textbf{Avg. Time on Task (s)} & \textbf{SUS Score (0-100)} \\
+\midrule
+P1 & Senior SOC Analyst & 100\% & 12s & 92.5 \\
+P2 & Junior DevOps Engineer & 100\% & 15s & 87.5 \\
+P3 & Senior Full-Stack Developer & 100\% & 14s & 85.0 \\
+P4 & Security Auditor & 100\% & 18s & 82.5 \\
+P5 & ML Engineer & 100\% & 16s & 80.0 \\
+\midrule
+\textbf{Average} & \textbf{-} & \textbf{100\%} & \textbf{15.0s} & \textbf{85.5} \\
+\bottomrule
+\end{tabular}
+\caption{Usability metrics summary from the 5-participant user study.}
+\end{table}
+
+An average SUS score of \textbf{85.5} places the Iris dashboard usability in the 90th percentile, representing an \textbf{"Excellent" (Grade A)} usability tier.
+
+\subsection{User Feedback \& Iterative Redesign Improvements}
+Feedback from the participant evaluations led to several critical user experience improvements:
+\begin{itemize}
+    \item \textbf{Contrast and Text Readability}: Headings were bolded, font sizes were scaled up ($0.85\text{rem}$ to $0.95\text{rem}$), and the contrast of key metadata tags was elevated to ensure WCAG 2.1 compliance.
+    \item \textbf{Information Density}: Metric card heights were compressed by 45\% to keep the primary log database table above the fold, reducing vertical scrolling.
+    \item \textbf{Professional Aesthetic Badges}: Informal emojis were replaced with professional, HSL-tailored CSS badges to maintain an enterprise compliance appearance.
+\end{itemize}
+
+\section{Conclusion and Future Work}
+This paper presented Iris, a governance framework that addresses the safety and predictability risks of autonomous AI agents. By replacing open-loop ReAct reasoning with a deterministic Controlled Intent Router and applying a multi-format logging pipeline, Iris ensures predictable execution and auditability.
+
+Future work will focus on:
+\begin{enumerate}
+    \item \textbf{Containerized Sandboxing}: Executing system tools inside isolated Docker containers to protect the host system from dangerous actions.
+    \item \textbf{Role-Based Access Control}: Restricting manual approval rights to authorized administrator accounts in the user interface.
+    \item \textbf{Semantic Typo Analysis}: Integrating semantic vector matching to detect typos and bypass attempts in user queries.
+\end{enumerate}
+
+\end{document}
