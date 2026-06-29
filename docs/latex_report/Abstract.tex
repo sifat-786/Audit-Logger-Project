@@ -1,0 +1,14 @@
+% ============================================================
+% Abstract.tex
+% ============================================================
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+
+Autonomous \gls{llm}-based agents using the ReAct (Reasoning and Action) paradigm pose significant safety and predictability risks when deployed in production systems. These include unbounded execution loops, non-deterministic tool invocations, absence of structured audit trails, and no mechanisms for human oversight over sensitive actions.
+
+This project presents \textbf{Iris}, a governance-first observability platform that wraps a tool-agnostic AI agent in a deterministic \textit{\gls{cir}} pattern. The system intercepts all proposed tool invocations prior to execution, evaluates each against a five-tier risk classification matrix (\texttt{NONE → LOW → MEDIUM → HIGH → CRITICAL}), generates a structured audit record into three simultaneous storage backends (JSON, \gls{csv}, SQLite), and presents a real-time observability dashboard built with Streamlit.
+
+System verification against a \textbf{70-scenario test catalogue} demonstrates 100\% accuracy in both risk classification and approval policy enforcement. A usability study conducted with five professional participants achieved a \textbf{System Usability Scale (\gls{sus}) score of 85.5/100} (Grade A — Excellent), confirming that the governance dashboard meets both engineering correctness and human-computer interaction excellence criteria.
+
+\vspace{0.5cm}
+\noindent\textbf{Keywords:} AI Agent Governance, Audit Logging, Risk Classification, Human-in-the-Loop, Controlled Intent Routing, Streamlit, LangChain, Groq LLaMA

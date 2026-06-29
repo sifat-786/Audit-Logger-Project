@@ -1,0 +1,34 @@
+% ============================================================
+% main.tex — Entry point following the provided template
+% ============================================================
+\documentclass[10pt]{report}
+\input{PackagesAndSettings}
+
+\begin{document}
+
+%% ─── Front Matter ───────────────────────────────────────────
+\pagenumbering{roman}
+
+\include{TitlePage}
+\include{Abstract}
+
+\tableofcontents
+\listoffigures
+\listoftables
+\clearpage
+\printglossary[type=\acronymtype, title=List of Abbreviations]
+
+%% ─── Main Chapters ──────────────────────────────────────────
+\pagenumbering{arabic}
+
+\include{Chapter1}
+\include{Chapter2}
+\include{Chapter3}
+\include{Chapter4}
+\include{Chapter5}
+
+%% ─── Bibliography ───────────────────────────────────────────
+\bibliographystyle{ieeetr}
+\bibliography{References}
+
+\end{document}

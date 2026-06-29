@@ -1,0 +1,47 @@
+% ============================================================
+% Chapter2.tex — Literature Review
+% ============================================================
+\chapter{Literature Review and Related Work}
+
+\section{Autonomous AI Agent Frameworks}
+
+The foundational concept of AI agents using tools was introduced by Yao et al. (2022) in ReAct~\cite{yao2022react}, which demonstrated that interleaving reasoning traces with actions significantly improved model performance on knowledge-intensive tasks. However, this work did not address governance or auditability — the agent was free to decide both the tool and the number of iterations.
+
+LangChain~\cite{langchain2023} emerged as a popular framework for building tool-calling LLM chains. While it provides structured tool binding and output parsers, it still defaults to autonomous agentic loops (AgentExecutor) where the number of steps is bounded only by a soft \texttt{max\_iterations} limit. LangGraph extends this with explicit state machines, though it requires significant design overhead to implement per-action security policies.
+
+\section{Agent Safety and Guardrails}
+
+Safety in LLM outputs has been studied extensively. Perez and Ribeiro (2022) demonstrate prompt injection attacks where malicious user inputs override system instructions~\cite{perez2022ignore}. Existing guardrail systems such as NVIDIA NeMo Guardrails~\cite{rebedea2023nemo} and Guardrails AI~\cite{guardrails2023} focus on output content filtering — detecting harmful language or off-topic responses — but do not address the safety of \textit{tool-level actions}.
+
+LlamaGuard~\cite{inan2023llamaguard} provides multi-class safety classification for conversational contexts, but is designed for content moderation, not execution control. No existing framework provides deterministic per-action security policies with audit logging.
+
+\section{Audit Logging in Software Systems}
+
+Audit logging is a well-established requirement in enterprise software security. The NIST Cybersecurity Framework (CSF)~\cite{nist2018csf} mandates that all system events affecting security posture must be logged with sufficient detail for forensic reconstruction. The ISO/IEC 27001 standard~\cite{iso27001} requires organizations to maintain immutable, time-stamped records of privileged actions.
+
+In agentic AI systems, audit logging remains an open research area. Existing work by Wang et al. (2024) on AgentBench~\cite{liu2023agentbench} benchmarks agent performance but does not evaluate audit traceability. Our work directly addresses this gap by treating structured audit trails as a first-class requirement.
+
+\section{Human-in-the-Loop Systems}
+
+Human-in-the-loop (\gls{hci}) AI systems involve humans in the decision-making pipeline to validate or correct model outputs. Amershi et al. (2019) provide design guidelines for human-AI interaction~\cite{amershi2019guidelines}, emphasizing that users must be able to understand AI actions and maintain agency. Our approval pipeline directly implements these principles by presenting pending actions with full context (tool name, parameters, risk reasoning) before execution.
+
+\section{Research Gap and Contribution}
+
+Existing work in LLM safety addresses either (a) content-level output moderation or (b) autonomous agent performance benchmarking. No prior system addresses the \textbf{intersection of deterministic execution control, structured audit logging, and real-time human oversight} in a single unified framework. Iris fills this gap.
+
+\begin{table}[H]
+\centering
+\caption{Comparison of Iris with Related Frameworks}
+\begin{tabularx}{\textwidth}{lXXXX}
+\toprule
+\textbf{Framework} & \textbf{Tool Control} & \textbf{Audit Trail} & \textbf{Risk Policy} & \textbf{Human Approval} \\
+\midrule
+LangChain AgentExecutor & Loop-based & None & None & None \\
+LangGraph & State Machine & Partial & Manual & None \\
+NeMo Guardrails & Output filter & None & Content-only & None \\
+LlamaGuard & Content class. & None & Content-only & None \\
+\rowcolor{lightblue}
+\textbf{Iris (This Work)} & \textbf{Deterministic} & \textbf{Full (3-format)} & \textbf{5-tier matrix} & \textbf{Yes (per action)} \\
+\bottomrule
+\end{tabularx}
+\end{table}

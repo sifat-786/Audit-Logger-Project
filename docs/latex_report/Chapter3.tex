@@ -1,0 +1,250 @@
+% ============================================================
+% Chapter3.tex — System Architecture & Design
+% ============================================================
+\chapter{System Architecture and Design}
+
+\section{High-Level Architecture}
+
+Iris is structured as a four-layer decoupled pipeline. The user interface communicates exclusively with the Controlled Intent Router, which orchestrates validation, governance, execution, and logging without exposing the underlying tools directly to the user or the model.
+
+Figure~\ref{fig:highlevel} presents the high-level system architecture.
+
+% -------------------------------------------------------
+% FIGURE 1: High-Level System Architecture Flowchart
+% -------------------------------------------------------
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  scale=0.85, transform shape,
+  node distance = 1.0cm and 1.5cm,
+  box/.style = {rectangle, rounded corners=4pt, draw, thick, minimum width=3.0cm, minimum height=0.8cm, align=center, font=\scriptsize},
+  arrow/.style = {-{Stealth[scale=1.0]}, thick},
+  layer/.style = {rectangle, rounded corners=6pt, draw, dashed, thick, inner sep=8pt}
+]
+
+% User
+\node[box, fill=lightblue!20, draw=accent]                          (user) {\textbf{User}\\\scriptsize (Browser)};
+
+% UI Layer
+\node[box, fill=lightblue!20, draw=accent, below=of user]           (ui)   {\textbf{Streamlit UI}\\\scriptsize app.py};
+
+% Controller
+\node[box, fill=lightyellow!20, draw=warning, below=1.4cm of ui]    (ctrl) {\textbf{Controlled Intent Router}\\\scriptsize agent/controller.py};
+
+% Governance row
+\node[box, fill=lightorange!15, draw=warning, below left=1.4cm and 1.8cm of ctrl]  (risk) {\textbf{Risk Classifier}\\\scriptsize risk\_classifier.py};
+\node[box, fill=lightorange!15, draw=warning, below=1.4cm of ctrl]                  (dec)  {\textbf{Decision Engine}\\\scriptsize decision\_engine.py};
+\node[box, fill=lightorange!15, draw=warning, below right=1.4cm and 1.8cm of ctrl] (exp)  {\textbf{Explanation Engine}\\\scriptsize explanation\_engine.py};
+
+% Tools vs Block
+\node[box, fill=lightgreen!15, draw=success, below left=1.4cm and 0.8cm of dec]    (tools) {\textbf{Tool Executor}\\\scriptsize gmail / generic / scheduler};
+\node[box, fill=lightred!15, draw=danger, below right=1.4cm and 0.8cm of dec]      (block) {\textbf{Blocked / Halted}\\\scriptsize Decision: reject / hold};
+
+% Audit Logger
+\node[box, fill=lightpurple!15, draw=critical, below=1.4cm of tools]               (audit) {\textbf{Audit Logger}\\\scriptsize agent/audit\_logger.py};
+
+% Storage backends
+\node[box, fill=codebg, draw=muted, below left=0.9cm and 1.0cm of audit]        (json)  {\textbf{JSON}\\\scriptsize audit\_log.json};
+\node[box, fill=codebg, draw=muted, below=0.9cm of audit]                        (csv)   {\textbf{CSV}\\\scriptsize audit\_log.csv};
+\node[box, fill=codebg, draw=muted, below right=0.9cm and 1.0cm of audit]       (db)    {\textbf{SQLite}\\\scriptsize audit\_log.db};
+
+% Layers with backgrounds (using very light fills and distinct non-overlapping label options)
+\begin{scope}[on background layer]
+  \node[layer, fill=lightblue!5, fit=(user)(ui)] (lay1) {};
+  \node[layer, fill=lightyellow!5, fit=(ctrl)] (lay2) {};
+  \node[layer, fill=lightorange!5, fit=(risk)(dec)(exp)] (lay3) {};
+  \node[layer, fill=lightpurple!5, fit=(audit)(json)(csv)(db)] (lay4) {};
+\end{scope}
+
+% Layer Labels placed neatly on the left margin to prevent any overlay text overlap
+\node[left=1.5cm of ui, font=\scriptsize\bfseries\color{accent}, align=right] {Layer 1:\\Presentation};
+\node[left=1.5cm of ctrl, font=\scriptsize\bfseries\color{warning}, align=right] {Layer 2:\\Orchestration};
+\node[left=1.5cm of dec, font=\scriptsize\bfseries\color{warning}, align=right] {Layer 3:\\Governance};
+\node[left=1.5cm of audit, font=\scriptsize\bfseries\color{critical}, align=right] {Layer 4:\\Telemetry};
+
+% Arrows
+\draw[arrow, color=accent]    (user) -- (ui);
+\draw[arrow, color=accent]    (ui) -- node[right, font=\tiny]{JSON stream} (ctrl);
+\draw[arrow, color=warning]   (ctrl) -- (risk);
+\draw[arrow, color=warning]   (ctrl) -- (dec);
+\draw[arrow, color=warning]   (ctrl) -- (exp);
+\draw[arrow, color=success]   (dec) -- (tools);
+\draw[arrow, color=danger]    (dec) -- (block);
+\draw[arrow, color=critical]  (tools) -- (audit);
+\draw[arrow, color=critical]  (block) -- (audit);
+\draw[arrow, color=muted]     (audit) -- (json);
+\draw[arrow, color=muted]     (audit) -- (csv);
+\draw[arrow, color=muted]     (audit) -- (db);
+
+\end{tikzpicture}
+\caption{High-level four-layer architecture of the Iris governance platform}
+\label{fig:highlevel}
+\end{figure}
+
+\section{Controlled Intent Routing Pattern}
+
+The \gls{cir} pattern is the core architectural innovation of Iris. Unlike the open-loop ReAct pattern where the model decides both the tool and the number of iterations, \gls{cir} enforces:
+
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Single-turn tool selection}: The \gls{llm} receives the user query and bound tool schemas exactly once. It either selects a tool or generates a conversational response.
+  \item \textbf{Orchestrator-controlled execution}: The Python orchestrator, not the model, decides whether the selected tool will actually execute, based on the risk policy.
+  \item \textbf{Bounded completion}: Every request completes in a finite, predictable number of steps.
+\end{itemize}
+
+\section{Risk Classification System}
+
+The risk classification matrix is the security heart of the platform. Every tool-callable action is statically mapped to one of five risk tiers:
+
+\begin{table}[H]
+\centering
+\caption{Risk Classification Matrix}
+\setlength{\tabcolsep}{5pt}
+\begin{tabularx}{\textwidth}{>{\bfseries}l l X l}
+\toprule
+\textbf{Risk Tier} & \textbf{Policy} & \textbf{Example Actions} & \textbf{Badge} \\
+\midrule
+\rowcolor{codebg}
+NONE & Auto-allow & Math calculation, general conversation & \textcolor{muted}{\textbf{⬤ NONE}} \\
+LOW  & Auto-allow & Read email, read file, web search & \textcolor{success}{\textbf{⬤ LOW}} \\
+MEDIUM & Auto-allow & Write file, draft email, create note & \textcolor{accent}{\textbf{⬤ MEDIUM}} \\
+\rowcolor{lightorange}
+HIGH & \textbf{Human approval required} & Send email, book flight, upload file & \textcolor{warning}{\textbf{⬤ HIGH}} \\
+\rowcolor{lightred}
+CRITICAL & \textbf{Blocked — reject} & Execute terminal, transfer money, drop DB & \textcolor{danger}{\textbf{⬤ CRITICAL}} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Request Lifecycle Flowchart}
+
+Figure~\ref{fig:lifecycle} shows the deterministic decision tree for any incoming user request.
+
+% -------------------------------------------------------
+% FIGURE 2: Request Lifecycle Flowchart (Optimized to prevent node overlap)
+% -------------------------------------------------------
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  scale=0.85, transform shape,
+  node distance=0.5cm and 1.5cm,
+  startstop/.style={rectangle, rounded corners=10pt, draw, thick, minimum width=2.4cm, minimum height=0.6cm, align=center, font=\scriptsize\bfseries},
+  process/.style={rectangle, draw, thick, minimum width=2.6cm, minimum height=0.65cm, align=center, font=\scriptsize},
+  decision/.style={diamond, draw, thick, minimum width=2.8cm, minimum height=0.9cm, align=center, font=\scriptsize, aspect=2.2},
+  arrow/.style={-{Stealth[scale=1.0]}, thick}
+]
+
+\node[startstop, fill=lightblue!20, draw=accent]                     (start)  {User Query};
+\node[process, fill=lightyellow!20, draw=warning, below=of start]     (typo)   {Typo / Spelling Check\\\scriptsize(query\_validator.py)};
+\node[process, fill=lightyellow!20, draw=warning, below=of typo]      (llm)    {LLM Intent Extraction\\\scriptsize(LLaMA 3.3 70B)};
+\node[decision, fill=white, draw=muted, below=of llm]              (tool?)  {Tool Call\\ Detected?};
+
+\node[process, fill=lightgreen!15, draw=success, right=1.5cm of tool?] (chat)   {Normal Chat\\ Response};
+\node[process, fill=lightyellow!20, draw=warning, below=of tool?]      (risk)   {Risk Classification\\\scriptsize(risk\_classifier.py)};
+\node[decision, fill=white, draw=danger, below=of risk]            (tier)   {Risk Tier?};
+
+\node[process, fill=lightgreen!15, draw=success, right=1.5cm of tier]  (allow)  {Auto-Approve \&\\ Execute Tool};
+\node[process, fill=lightorange!15, draw=warning, below=of tier]       (hold)   {Halt Execution\\ Show Approval Card};
+\node[process, fill=lightred!15, draw=danger, left=1.5cm of tier]     (block)  {Block Action\\ CRITICAL Reject};
+
+\node[decision, fill=white, draw=warning, below=of hold]           (approved?) {User\\ Approved?};
+\node[process, fill=lightgreen!15, draw=success, right=1.5cm of approved?] (exec)  {Execute Tool\\ \& Synthesize};
+\node[process, fill=lightred!15, draw=danger, left=1.5cm of approved?] (skip)  {Remain\\ Blocked};
+
+% Write Audit Log is positioned below approved? to prevent overlapping with hold/approved?
+\node[process, fill=lightpurple!15, draw=critical, below=1.0cm of approved?] (log)    {Write Audit Log\\\scriptsize(audit\_logger.py)};
+\node[startstop, fill=lightblue!20, draw=accent, below=of log]        (end)    {Render Response\\ in Dashboard};
+
+% Arrows
+\draw[arrow]            (start)  -- (typo);
+\draw[arrow]            (typo)   -- (llm);
+\draw[arrow]            (llm)    -- (tool?);
+\draw[arrow]            (tool?)  -- node[above, font=\tiny]{No}  (chat);
+\draw[arrow]            (tool?)  -- node[left, font=\tiny]{Yes} (risk);
+\draw[arrow]            (risk)   -- (tier);
+\draw[arrow, color=success]  (tier) -- node[above, font=\tiny]{LOW/MED} (allow);
+\draw[arrow, color=warning]  (tier) -- node[left, font=\tiny]{HIGH}     (hold);
+\draw[arrow, color=danger]   (tier) -- node[above, font=\tiny]{CRIT}   (block);
+\draw[arrow]            (hold)      -- (approved?);
+\draw[arrow, color=success]  (approved?) -- node[above, font=\tiny]{Yes} (exec);
+\draw[arrow, color=danger]   (approved?) -- node[above, font=\tiny]{No}  (skip);
+\draw[arrow, color=critical] (allow)  |- (log);
+\draw[arrow, color=critical] (exec)   -- (log);
+\draw[arrow, color=critical] (block)  |- (log);
+\draw[arrow, color=critical] (skip)   -- (log);
+\draw[arrow, color=accent]   (chat)   |- (end);
+\draw[arrow]            (log)    -- (end);
+
+\end{tikzpicture}
+\caption{Deterministic request lifecycle — Controlled Intent Routing decision tree}
+\label{fig:lifecycle}
+\end{figure}
+
+\section{Module Dependency Design}
+
+Figure~\ref{fig:modules} shows the module-level dependency graph of the Iris workspace.
+
+% -------------------------------------------------------
+% FIGURE 3: Module Dependency Graph (Sized to prevent overlap)
+% -------------------------------------------------------
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  scale=0.85, transform shape,
+  node distance=0.6cm and 0.8cm,
+  mod/.style={rectangle, rounded corners=3pt, draw, thick, minimum width=2.4cm, minimum height=0.6cm, align=center, font=\scriptsize},
+  arrow/.style={-{Stealth[scale=0.9]}, thick, color=muted}
+]
+
+\node[mod, fill=lightblue!20, draw=accent]                          (app)   {\textbf{app.py}\\\scriptsize Streamlit UI};
+
+\node[mod, fill=lightyellow!20, draw=warning, below left=0.8cm and 1.2cm of app]  (ctrl) {\textbf{controller.py}\\\scriptsize Orchestrator};
+\node[mod, fill=lightpurple!15, draw=critical, below right=0.8cm and 1.2cm of app] (alog) {\textbf{audit\_logger.py}\\\scriptsize Logger};
+
+\node[mod, fill=lightorange!15, draw=warning, below left=0.8cm and 0.6cm of ctrl]  (risk) {\textbf{risk\_classifier.py}};
+\node[mod, fill=lightorange!15, draw=warning, below=0.8cm of ctrl]                   (dec)  {\textbf{decision\_engine.py}};
+\node[mod, fill=lightorange!15, draw=warning, below right=0.8cm and 0.6cm of ctrl]  (exp)  {\textbf{explanation\_engine.py}};
+\node[mod, fill=lightyellow!20, draw=warning, left=1.2cm of ctrl]                    (qv)   {\textbf{query\_validator.py}};
+
+\node[mod, fill=lightgreen!15, draw=success, below=0.8cm of dec]                    (gmail){\textbf{gmail\_tool.py}};
+\node[mod, fill=lightgreen!15, draw=success, left=0.9cm of gmail]                   (gen)  {\textbf{generic\_tools.py}};
+\node[mod, fill=lightgreen!15, draw=success, right=0.9cm of gmail]                  (sched){\textbf{scheduler\_tool.py}};
+
+\draw[arrow] (app)  -- (ctrl);
+\draw[arrow] (app)  -- (alog);
+\draw[arrow] (ctrl) -- (risk);
+\draw[arrow] (ctrl) -- (dec);
+\draw[arrow] (ctrl) -- (exp);
+\draw[arrow] (ctrl) -- (qv);
+\draw[arrow] (ctrl) -- (gmail);
+\draw[arrow] (ctrl) -- (gen);
+\draw[arrow] (ctrl) -- (sched);
+\draw[arrow] (sched)-- (alog);
+
+\end{tikzpicture}
+\caption{Module dependency graph of the Iris workspace}
+\label{fig:modules}
+\end{figure}
+
+\section{Data Flow and Audit Schema}
+
+Every agent action generates a structured audit record containing nine mandatory fields:
+
+\begin{table}[H]
+\centering
+\caption{Audit Log Record Schema}
+\begin{tabularx}{\textwidth}{l l X}
+\toprule
+\textbf{Field} & \textbf{Type} & \textbf{Description} \\
+\midrule
+\texttt{event\_id}                & STRING (PK) & Unique identifier: \texttt{EV-XXXXXX} \\
+\texttt{timestamp}                & STRING      & ISO-8601 UTC timestamp \\
+\texttt{user\_instruction}        & TEXT        & Raw verbatim user query \\
+\texttt{tool\_used}               & STRING      & LangChain tool function name \\
+\texttt{agent\_action}            & STRING      & Semantic action label \\
+\texttt{external\_content\_involved} & TEXT     & APIs or file paths accessed \\
+\texttt{data\_accessed}           & TEXT        & Specific data scope description \\
+\texttt{risk\_level}              & ENUM        & NONE / LOW / MEDIUM / HIGH / CRITICAL \\
+\texttt{decision}                 & ENUM        & approved / need approval / reject \\
+\bottomrule
+\end{tabularx}
+\end{table}

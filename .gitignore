@@ -33,3 +33,17 @@ evaluation/scenario_evaluation_report.md
 docs/live_demo_script.md
 docs/task_tracing_walkthrough.md
 docs/project_tasks_completion.md
+
+# LaTeX auxiliary build files
+docs/latex_report/*.aux
+docs/latex_report/*.log
+docs/latex_report/*.out
+docs/latex_report/*.toc
+docs/latex_report/*.synctex.gz
+docs/latex_report/*.pdf
+docs/latex_report/*.blg
+docs/latex_report/*.bbl
+docs/latex_report/*.glg
+docs/latex_report/*.glo
+docs/latex_report/*.gls
+docs/latex_report/*.ist

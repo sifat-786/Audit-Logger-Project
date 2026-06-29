@@ -1,0 +1,143 @@
+% ============================================================
+% Chapter4.tex — Implementation
+% ============================================================
+\chapter{Implementation}
+
+\section{Technology Stack}
+
+The Iris platform is implemented entirely in Python, leveraging the following key libraries and services:
+
+\begin{table}[H]
+\centering
+\caption{Technology Stack}
+\begin{tabularx}{\textwidth}{l l X}
+\toprule
+\textbf{Component} & \textbf{Technology} & \textbf{Purpose} \\
+\midrule
+LLM Inference   & Groq Cloud + LLaMA 3.3 70B Versatile & Intent extraction and response synthesis \\
+Agent Framework & LangChain (\texttt{@tool} decorators) & Tool binding and JSON schema generation \\
+UI Dashboard    & Streamlit + Custom CSS & Real-time observability interface \\
+Gmail Access    & Google Gmail API + OAuth 2.0 & Email reading, drafting, and sending \\
+Audit Storage   & JSON + CSV + SQLite (SQLite3) & Three-format concurrent audit persistence \\
+Input Validation& Python \texttt{re} module (Regex) & Domain typo detection \\
+Scheduling      & Python \texttt{threading.Thread} & Background daemon task execution \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Controlled Intent Router Implementation}
+
+The orchestrator in \texttt{agent/controller.py} implements the \gls{cir} pattern through the following sequence:
+
+\begin{enumerate}[leftmargin=1.5em]
+  \item \textbf{Tool binding}: All registered tools are wrapped with LangChain's \texttt{@tool} decorator, which generates JSON schemas describing each function's arguments. These schemas are bound to the LLM via \texttt{llm.bind\_tools(tools)}.
+  \item \textbf{Single-turn invocation}: The LLM is invoked once with the user query and tool schemas. It either returns a conversational message or a structured \texttt{tool\_call} object.
+  \item \textbf{Policy enforcement}: If a tool call is detected, the tool name is passed to \texttt{risk\_classifier.py}, which performs an O(1) dictionary lookup to determine the risk tier.
+  \item \textbf{Decision branching}: The decision engine applies the approval matrix and routes to execution, hold, or block.
+  \item \textbf{Audit write}: Regardless of the outcome, \texttt{audit\_logger.py} writes a complete structured record.
+\end{enumerate}
+
+\begin{lstlisting}[caption={Core dispatch logic in agent/controller.py}, label={lst:dispatch}]
+# Single-turn LLM invocation
+ai_msg = _llm_with_tools.invoke(messages)
+
+# If tool call detected
+if ai_msg.tool_calls:
+    tool_name = ai_msg.tool_calls[0]["name"]
+    
+    # Policy evaluation
+    explanation = generate_explanation(tool_name)
+    risk_level  = explanation["risk_level"]
+    decision    = explanation["decision"]
+    
+    if decision == "reject":
+        # CRITICAL: block immediately
+        log_action(..., status="SKIPPED", decision="reject")
+    elif decision == "need approval":
+        # HIGH: return approval card to UI
+        log_action(..., status="SKIPPED", decision="need approval")
+    else:
+        # LOW/MEDIUM: auto-execute
+        result = execute_tool(tool_name, args)
+        log_action(..., status="SUCCESS", decision="approved")
+\end{lstlisting}
+
+\section{Risk Classifier Implementation}
+
+The risk classifier (\texttt{agent/risk\_classifier.py}) uses a static dictionary mapping every registered tool name to its security tier. The classification function performs an O(1) lookup:
+
+\begin{lstlisting}[caption={Risk classification core logic}, label={lst:risk}]
+ACTION_RISK_MAP = {
+    "read_recent_emails":       "LOW",
+    "send_email":               "HIGH",
+    "execute_terminal_command": "CRITICAL",
+    "query_database":           "HIGH",
+    "buy_stock":                "CRITICAL",
+    # ... 65+ more entries
+}
+
+def classify_risk(action: str, default: str = "MEDIUM") -> str:
+    return ACTION_RISK_MAP.get(action.lower(), default)
+\end{lstlisting}
+
+\section{Audit Logger Implementation}
+
+The logger (\texttt{agent/audit\_logger.py}) implements a thread-safe write-through cache strategy. An in-memory Python list (\texttt{\_log\_buffer}) acts as the primary read store for the UI, while writes are propagated to all three disk formats inside a \texttt{threading.Lock()} guard:
+
+\begin{lstlisting}[caption={Thread-safe multi-format audit persistence}, label={lst:logger}]
+_log_buffer: list[dict] = []
+_buffer_lock = threading.Lock()
+
+def log_action(...) -> dict:
+    log_entry = {
+        "event_id": f"EV-{uuid.uuid4().hex[:6].upper()}",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "user_instruction": user_instruction,
+        "risk_level": risk_level,
+        "decision": decision,
+        # ... other fields
+    }
+    with _buffer_lock:
+        _log_buffer.append(log_entry)
+        _persist_logs(_log_buffer)  # JSON + CSV + SQLite
+    return log_entry
+\end{lstlisting}
+
+\section{Gmail OAuth 2.0 Integration}
+
+Email operations use the Gmail REST API with OAuth 2.0 authorization. Scoped credentials are stored in \texttt{token.json} to authorize requests without requiring password storage. The implementation supports:
+
+\begin{itemize}[leftmargin=1.5em]
+  \item Reading recent emails (subject, sender, snippet).
+  \item Reading full email body by message ID.
+  \item Sending emails via SMTP-over-Gmail.
+  \item Creating draft emails.
+  \item Applying labels to messages.
+\end{itemize}
+
+\section{Pre-Execution Typo Validator}
+
+Before routing to the LLM, the query validator (\texttt{agent/query\_validator.py}) runs a regex-based scan to detect common spelling errors in email domains and command keywords:
+
+\begin{lstlisting}[caption={Typo detection regex patterns}, label={lst:typo}]
+EMAIL_TYPO_MAP = {
+    r"\b([a-zA-Z0-9._%+-]+)@gmal\.com\b":  "gmail.com",
+    r"\b([a-zA-Z0-9._%+-]+)@gamil\.com\b": "gmail.com",
+    r"\b([a-zA-Z0-9._%+-]+)@gmial\.com\b": "gmail.com",
+    # ... more patterns
+}
+\end{lstlisting}
+
+If a typo is detected, a warning message is displayed in the dashboard \textit{before} the query proceeds to the LLM, allowing the user to correct it without executing a flawed action.
+
+\section{Streamlit Dashboard Architecture}
+
+The dashboard (\texttt{app.py}) is organized into three tabs:
+
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Chat Tab}: Main conversational interface with per-message execution trace cards showing tool, risk badge, decision badge, and policy reasoning.
+  \item \textbf{Audit Log Tab}: Filterable, searchable database view with session metrics (total actions, success rate, risk distribution chart) and JSON export button.
+  \item \textbf{System Tab}: Live tool registry showing all 14+ registered tools with their risk tiers and descriptions.
+\end{itemize}
+
+A custom \texttt{style.css} file (21KB) provides the full visual identity: dark-themed chat bubbles, HSL-tailored risk badges, glassmorphism metric cards, and smooth CSS transitions.

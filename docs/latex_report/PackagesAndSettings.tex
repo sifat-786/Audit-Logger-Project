@@ -1,0 +1,133 @@
+% ============================================================
+% PackagesAndSettings.tex — Global Packages & Configurations
+% ============================================================
+
+% --- Core Layout ---
+\usepackage[a4paper, top=2cm, bottom=2cm, left=2.5cm, right=2cm]{geometry}
+\usepackage{setspace}
+\setstretch{1.1}
+
+% --- Typography ---
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+
+% --- Colors ---
+\usepackage[dvipsnames,table,x11names]{xcolor}
+\definecolor{primary}{RGB}{13, 71, 161}       % Deep blue
+\definecolor{accent}{RGB}{21, 101, 192}        % Mid blue
+\definecolor{success}{RGB}{27, 94, 32}         % Dark green
+\definecolor{warning}{RGB}{230, 81, 0}         % Orange
+\definecolor{danger}{RGB}{183, 28, 28}         % Dark red
+\definecolor{critical}{RGB}{74, 20, 140}       % Purple
+\definecolor{muted}{RGB}{66, 66, 66}           % Dark grey
+\definecolor{lightblue}{RGB}{227, 242, 253}
+\definecolor{lightgreen}{RGB}{232, 245, 233}
+\definecolor{lightyellow}{RGB}{255, 253, 231}
+\definecolor{lightorange}{RGB}{255, 243, 224}
+\definecolor{lightred}{RGB}{253, 235, 235}
+\definecolor{lightpurple}{RGB}{243, 229, 245}
+\definecolor{codebg}{RGB}{245, 245, 245}
+
+% --- Chapter Styling ---
+\usepackage[compact]{titlesec}
+\titleformat{\chapter}[block]
+  {\normalfont\Large\bfseries\color{primary}}
+  {\chaptertitlename\ \thechapter:}{0.5em}{\Large}
+\titlespacing*{\chapter}{0pt}{-10pt}{10pt}
+
+\titleformat{\section}{\large\bfseries\color{accent}}{{\thesection}}{0.8em}{}
+\titleformat{\subsection}{\normalsize\bfseries\color{muted}}{{\thesubsection}}{0.8em}{}
+\titlespacing*{\section}{0pt}{10pt}{4pt}
+\titlespacing*{\subsection}{0pt}{8pt}{3pt}
+
+% --- Headers/Footers ---
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{muted}\textit{Iris: AI Agent Governance \& Observability Platform}}
+\fancyhead[R]{\small\color{muted}\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% --- Tables ---
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{colortbl}
+
+% --- Graphics & Diagrams ---
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{tikz}
+\usepackage{tikzpeople}
+\usetikzlibrary{
+  shapes.geometric, shapes.arrows, shapes.multipart,
+  arrows.meta, positioning, fit, calc,
+  decorations.pathreplacing, backgrounds, shadows
+}
+
+% --- Listings (Code Blocks) ---
+\usepackage{listings}
+\lstset{
+  backgroundcolor=\color{codebg},
+  basicstyle=\scriptsize\ttfamily,
+  breaklines=true,
+  captionpos=b,
+  commentstyle=\color{success},
+  frame=single,
+  keywordstyle=\color{primary}\bfseries,
+  language=Python,
+  numbers=left,
+  numbersep=8pt,
+  numberstyle=\tiny\color{muted},
+  showstringspaces=false,
+  stringstyle=\color{warning},
+  tabsize=4,
+  xleftmargin=15pt
+}
+
+% --- Math ---
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+% --- Hyperlinks ---
+\usepackage[colorlinks=true, linkcolor=primary, urlcolor=accent, citecolor=success]{hyperref}
+
+% --- Captions ---
+\usepackage{caption}
+\captionsetup{font=small, labelfont={bf,color=primary}}
+
+% --- Glossary / Acronyms ---
+\usepackage[acronym, toc]{glossaries}
+\makeglossaries
+
+\newacronym{llm}{LLM}{Large Language Model}
+\newacronym{api}{API}{Application Programming Interface}
+\newacronym{hci}{HCI}{Human-Computer Interaction}
+\newacronym{sus}{SUS}{System Usability Scale}
+\newacronym{cir}{CIR}{Controlled Intent Routing}
+\newacronym{oauth}{OAuth}{Open Authorization}
+\newacronym{ui}{UI}{User Interface}
+\newacronym{json}{JSON}{JavaScript Object Notation}
+\newacronym{csv}{CSV}{Comma-Separated Values}
+\newacronym{sql}{SQL}{Structured Query Language}
+\newacronym{soc}{SOC}{Security Operations Center}
+
+% --- Misc Utilities ---
+\usepackage{enumitem}
+\usepackage{mdframed}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins, breakable, listings}
+
+% Colored boxes for info, warning, danger
+\newtcolorbox{infobox}[1][]{colback=lightblue, colframe=accent, fonttitle=\bfseries, title=#1}
+\newtcolorbox{warningbox}[1][]{colback=lightorange, colframe=warning, fonttitle=\bfseries, title=#1}
+\newtcolorbox{dangerbox}[1][]{colback=lightred, colframe=danger, fonttitle=\bfseries, title=#1}
+\newtcolorbox{successbox}[1][]{colback=lightgreen, colframe=success, fonttitle=\bfseries, title=#1}
+
+% --- Paragraph Spacing ---
+\setlength{\parskip}{6pt}
+\setlength{\parindent}{0pt}

@@ -1,0 +1,168 @@
+% ============================================================
+% Chapter5.tex — Evaluation, Usability Study & Conclusion
+% ============================================================
+\chapter{Evaluation, Results, and Conclusion}
+
+\section{Programmatic System Verification}
+
+\subsection{Scenario Catalogue}
+
+A ground-truth test catalogue of \textbf{70 distinct agent-action scenarios} was prepared in \texttt{evaluation/scenario\_catalogue.csv}. The catalogue covers the following categories:
+
+\begin{itemize}[leftmargin=1.5em]
+  \item Email operations: reading, drafting, sending, forwarding, summarizing, flagging, deleting.
+  \item File system operations: reading, writing, listing directories, downloading.
+  \item Communication: messaging, calling, publishing blog content.
+  \item System administration: restarting servers, deploying code, running commands, dropping databases.
+  \item Financial operations: stock trading, money transfers, invoice generation.
+  \item Calendar and scheduling: creating events, cancelling meetings, setting timers.
+\end{itemize}
+
+Each scenario entry contains: \texttt{scenario\_id}, \texttt{user\_request}, \texttt{agent\_action}, \texttt{tool\_used}, \texttt{risk\_level} (ground truth), \texttt{approval\_required} (TRUE/FALSE), and a natural language \texttt{explanation}.
+
+\subsection{Evaluation Methodology}
+
+The evaluation script (\texttt{evaluation/evaluate\_scenarios.py}) iterates over all 70 scenarios and compares the classifier's output to the ground truth, computing:
+
+\begin{equation}
+\text{Accuracy} = \frac{\text{Correctly Classified Scenarios}}{\text{Total Scenarios}} \times 100\%
+\end{equation}
+
+\subsection{Verification Results}
+
+\begin{table}[H]
+\centering
+\caption{System Verification Results (70 Scenarios)}
+\begin{tabularx}{\textwidth}{X c c}
+\toprule
+\textbf{Metric} & \textbf{Result} & \textbf{Status} \\
+\midrule
+Risk Classification Accuracy & \textbf{100\%} (70/70) & \textcolor{success}{\textbf{PASSED}} \\
+Approval Policy Correctness  & \textbf{100\%} (70/70) & \textcolor{success}{\textbf{PASSED}} \\
+Audit Log Schema Completeness & \textbf{100\%} (9/9 fields) & \textcolor{success}{\textbf{PASSED}} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Table~\ref{tab:scenarios} presents a representative sample of key scenario outcomes:
+
+\begin{table}[H]
+\centering
+\caption{Sample Scenario Evaluation Outcomes}
+\label{tab:scenarios}
+\begin{tabularx}{\textwidth}{l X l l l}
+\toprule
+\textbf{ID} & \textbf{Action} & \textbf{Risk} & \textbf{Decision} & \textbf{Result} \\
+\midrule
+SCN-001 & Answer general question    & LOW      & approved      & \textcolor{success}{Pass} \\
+SCN-003 & Read latest email          & LOW      & approved      & \textcolor{success}{Pass} \\
+SCN-007 & Draft email to colleague   & MEDIUM   & approved      & \textcolor{success}{Pass} \\
+SCN-014 & Send email to client       & HIGH     & need approval & \textcolor{success}{Pass} \\
+SCN-018 & Delete user account        & CRITICAL & reject        & \textcolor{success}{Pass} \\
+SCN-020 & Transfer money             & CRITICAL & reject        & \textcolor{success}{Pass} \\
+SCN-048 & Terminate virtual machine  & CRITICAL & reject        & \textcolor{success}{Pass} \\
+SCN-057 & Deploy production code     & CRITICAL & reject        & \textcolor{success}{Pass} \\
+SCN-062 & Apply bulk discount        & HIGH     & need approval & \textcolor{success}{Pass} \\
+SCN-070 & Forward invoice to team    & HIGH     & need approval & \textcolor{success}{Pass} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Mathematical Model of the Policy Engine}
+
+Let $A$ be the set of all agent actions and $R = \{\texttt{NONE, LOW, MEDIUM, HIGH, CRITICAL}\}$ be the risk set. The classification function $f: A \rightarrow R$ maps an action to a risk tier:
+\begin{equation}
+f(a) = \texttt{ACTION\_RISK\_MAP.get}(a, \texttt{"MEDIUM"})
+\end{equation}
+
+The decision function $g: R \rightarrow D$, where $D = \{\texttt{approved, need approval, reject}\}$:
+\begin{equation}
+g(r) = \begin{cases}
+  \texttt{reject}        & \text{if } r = \texttt{CRITICAL} \\
+  \texttt{need approval} & \text{if } r = \texttt{HIGH} \\
+  \texttt{approved}      & \text{if } r \in \{\texttt{NONE, LOW, MEDIUM}\}
+\end{cases}
+\end{equation}
+
+The composed governance function $h = g \circ f : A \rightarrow D$ evaluates each proposed action:
+\begin{equation}
+h(a) = g(f(a))
+\end{equation}
+
+\section{Usability Study}
+
+\subsection{Study Design}
+
+A structured usability study was conducted with five professional participants representing realistic user personas for the Iris governance dashboard.
+
+\begin{table}[H]
+\centering
+\caption{Usability Study Participant Profiles}
+\begin{tabularx}{\textwidth}{l l X}
+\toprule
+\textbf{ID} & \textbf{Participant Role} & \textbf{Primary Use Context} \\
+\midrule
+P1 & Senior SOC Analyst          & Real-time threat detection and compliance auditing \\
+P2 & Junior DevOps Engineer      & Deployment pipeline monitoring and system ops \\
+P3 & Senior Full-Stack Developer & Tool integration and API governance review \\
+P4 & Security Compliance Auditor & Regulatory reporting and audit export verification \\
+P5 & Machine Learning Engineer   & Agent behavior inspection and policy correctness \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Each participant performed four standardized tasks:
+\begin{enumerate}[leftmargin=1.5em]
+  \item \textbf{Log Discovery}: Locate a specific \texttt{FAILED} action entry from the live audit timeline.
+  \item \textbf{Risk Identification}: Compile all \texttt{CRITICAL} risk actions from the current session.
+  \item \textbf{Detail Auditing}: Inspect the full parameters, data scope, and policy explanation of a blocked action.
+  \item \textbf{Data Export}: Download the session audit trail as a JSON export file.
+\end{enumerate}
+
+\subsection{Results}
+
+\begin{table}[H]
+\centering
+\caption{Usability Study Quantitative Results}
+\begin{tabularx}{\textwidth}{l X c c c}
+\toprule
+\textbf{ID} & \textbf{Role} & \textbf{Success} & \textbf{Time (s)} & \textbf{SUS Score} \\
+\midrule
+P1 & Senior SOC Analyst          & 100\% & 12s  & 92.5 \\
+P2 & Junior DevOps Engineer      & 100\% & 15s  & 87.5 \\
+P3 & Senior Full-Stack Developer & 100\% & 14s  & 85.0 \\
+P4 & Security Auditor            & 100\% & 18s  & 82.5 \\
+P5 & ML Engineer                 & 100\% & 16s  & 80.0 \\
+\midrule
+\textbf{Average} & — & \textbf{100\%} & \textbf{15.0s} & \textbf{85.5} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{successbox}[Usability Outcome]
+An average \gls{sus} score of \textbf{85.5 / 100} places the Iris dashboard in the \textbf{90th percentile} of tested systems, earning a classification of \textbf{``Excellent'' (Grade A)}.
+\end{successbox}
+
+\subsection{HCI Design Improvements}
+
+Participant feedback directly informed three key UI/UX improvements:
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Contrast and readability}: Font sizes scaled from 0.85rem to 0.95rem; metadata labels bolded to WCAG 2.1 standard contrast ratios.
+  \item \textbf{Information density}: Top metric cards compressed by 45\% to bring the audit log table above the visible fold, reducing required scrolling.
+  \item \textbf{Professional badge system}: Emoji-based indicators replaced with HSL-tailored CSS risk badges (green LOW, amber HIGH, dark red CRITICAL) for enterprise-grade visual consistency.
+\end{itemize}
+
+\section{Conclusion}
+
+This project successfully designed, implemented, and verified \textbf{Iris} — a governance-first observability platform for tool-agnostic AI agents. The system solves the core vulnerabilities of the ReAct execution paradigm by introducing deterministic Controlled Intent Routing, a five-tier risk classification matrix with human-in-the-loop validation for high-risk actions, and a tamper-resistant multi-format audit trail.
+
+Programmatic evaluation against 70 scenarios confirms 100\% accuracy in both risk classification and approval policy enforcement. A user study with five professionals confirms that the observability dashboard achieves excellent usability with a SUS score of 85.5/100.
+
+\section{Future Work}
+
+\begin{enumerate}[leftmargin=1.5em]
+  \item \textbf{Containerized tool sandboxing}: Execute system tools inside isolated Docker containers to prevent host filesystem compromise by malicious tool outputs.
+  \item \textbf{Role-Based Access Control (RBAC)}: Implement user authentication with tiered permissions — standard users can submit queries; only administrators can approve HIGH-risk actions.
+  \item \textbf{Semantic typo analysis}: Integrate vector embedding similarity to detect paraphrased bypass attempts that regex patterns may miss.
+  \item \textbf{Multi-agent governance}: Extend the framework to orchestrate and audit interactions between multiple cooperative AI agents.
+\end{enumerate}

@@ -1,0 +1,55 @@
+% ============================================================
+% Chapter1.tex — Introduction
+% ============================================================
+\chapter{Introduction}
+
+\section{Background and Motivation}
+
+The deployment of Large Language Models (\glspl{llm}) as autonomous agents has transitioned rapidly from academic research into enterprise production systems. Modern AI agents are designed to be tool-agnostic — interfacing directly with operating systems, databases, cloud email providers, financial systems, and web browsers. These agents are traditionally implemented using the Reasoning and Action (ReAct) paradigm, where the model iteratively reasons about objectives and selects tools until a goal is achieved.
+
+While the ReAct paradigm provides remarkable flexibility, its open-loop nature introduces critical risks in production environments. Since the agent dynamically determines its own execution path at inference time, no mechanism exists to predict, intercept, or record the sequence of actions being performed. This creates serious vulnerabilities:
+
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Infinite execution loops}: If a tool returns unexpected output, the agent can enter repetitive cycles, consuming tokens and incurring cloud costs.
+  \item \textbf{Non-deterministic tool dispatch}: Identical user queries can result in different tool selections across runs, making the system unpredictable.
+  \item \textbf{Absence of audit trails}: Standard logging frameworks capture only model outputs, not the complete request lifecycle (intent, tool, risk, data scope, outcome).
+  \item \textbf{No security guardrails}: Without policy enforcement, all tool calls are dispatched with equal privilege — from reading email to executing terminal commands.
+\end{itemize}
+
+\section{Problem Statement}
+
+The core research problem addressed by this project is:
+
+\begin{infobox}[Problem Statement]
+How can an AI agent be made \textbf{predictable, auditable, and safe} for deployment in environments where tool actions carry real-world consequences (communication, file mutation, financial effects) — without sacrificing natural language expressiveness?
+\end{infobox}
+
+\section{Proposed Solution: Iris}
+
+This project introduces \textbf{Iris}, a governance-aware observability platform. Iris wraps any tool-agnostic \gls{llm} agent in a deterministic \textit{Controlled Intent Routing (\gls{cir})} layer that:
+
+\begin{enumerate}[leftmargin=1.5em]
+  \item Validates user queries for spelling errors and domain typos before routing.
+  \item Extracts the intended tool invocation in a single, bounded LLM turn.
+  \item Evaluates the proposed action against a five-tier risk classification matrix.
+  \item Either auto-approves, halts for human approval, or systematically blocks the action.
+  \item Writes a complete, structured audit record across three persistence formats.
+  \item Renders a real-time observability dashboard showing session metrics, risk timelines, and log search functionality.
+\end{enumerate}
+
+\section{Project Scope and Objectives}
+
+The primary objectives of this project are:
+
+\begin{itemize}[leftmargin=1.5em]
+  \item Design and implement a controlled agent architecture that replaces open-loop ReAct reasoning.
+  \item Build a formal risk taxonomy classifying 70+ agent actions into five security tiers.
+  \item Implement a multi-format audit logging engine (JSON, CSV, SQLite) with thread-safe writes.
+  \item Develop a human-in-the-loop approval pipeline for high-risk actions.
+  \item Create a real-time Streamlit observability dashboard with professional UI/UX standards.
+  \item Evaluate the system programmatically and through a formal usability study.
+\end{itemize}
+
+\section{Report Organization}
+
+The remainder of this report is structured as follows. Chapter 2 reviews related literature. Chapter 3 presents the system architecture and design. Chapter 4 details implementation. Chapter 5 presents evaluation results, usability study findings, and conclusions.
