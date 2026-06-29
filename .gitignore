@@ -28,3 +28,8 @@ logs/audit_log.csv
 logs/audit_log.db
 evaluation/scenario_results.json
 evaluation/scenario_evaluation_report.md
+
+# Task tracking & walkthrough guides (local only)
+docs/live_demo_script.md
+docs/task_tracing_walkthrough.md
+docs/project_tasks_completion.md
