@@ -10,43 +10,43 @@ Iris is structured as a four-layer decoupled pipeline. The user interface commun
 Figure~\ref{fig:highlevel} presents the high-level system architecture.
 
 % -------------------------------------------------------
-% FIGURE 1: High-Level System Architecture Flowchart
+% FIGURE 1: High-Level System Architecture Flowchart (Symmetric and Clear Layout)
 % -------------------------------------------------------
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[
-  scale=0.85, transform shape,
+  scale=0.9, transform shape,
   node distance = 1.0cm and 1.5cm,
-  box/.style = {rectangle, rounded corners=4pt, draw, thick, minimum width=3.0cm, minimum height=0.8cm, align=center, font=\scriptsize},
+  box/.style = {rectangle, rounded corners=4pt, draw, thick, minimum width=3.2cm, minimum height=0.8cm, align=center, font=\scriptsize},
   arrow/.style = {-{Stealth[scale=1.0]}, thick},
-  layer/.style = {rectangle, rounded corners=6pt, draw, dashed, thick, inner sep=8pt}
+  layer/.style = {rectangle, rounded corners=6pt, draw, dashed, thick, inner sep=10pt}
 ]
 
-% User
+% User (Center Column)
 \node[box, fill=lightblue!20, draw=accent]                          (user) {\textbf{User}\\\scriptsize (Browser)};
 
-% UI Layer
+% UI Layer (Center Column)
 \node[box, fill=lightblue!20, draw=accent, below=of user]           (ui)   {\textbf{Streamlit UI}\\\scriptsize app.py};
 
-% Controller
-\node[box, fill=lightyellow!20, draw=warning, below=1.4cm of ui]    (ctrl) {\textbf{Controlled Intent Router}\\\scriptsize agent/controller.py};
+% Controller (Center Column)
+\node[box, fill=lightyellow!20, draw=warning, below=1.5cm of ui]    (ctrl) {\textbf{Controlled Intent Router}\\\scriptsize agent/controller.py};
 
-% Governance row
-\node[box, fill=lightorange!15, draw=warning, below left=1.4cm and 1.8cm of ctrl]  (risk) {\textbf{Risk Classifier}\\\scriptsize risk\_classifier.py};
-\node[box, fill=lightorange!15, draw=warning, below=1.4cm of ctrl]                  (dec)  {\textbf{Decision Engine}\\\scriptsize decision\_engine.py};
-\node[box, fill=lightorange!15, draw=warning, below right=1.4cm and 1.8cm of ctrl] (exp)  {\textbf{Explanation Engine}\\\scriptsize explanation\_engine.py};
+% Governance Layer (Row - Symmetrical around decision engine)
+\node[box, fill=lightorange!15, draw=warning, below=1.5cm of ctrl]                  (dec)  {\textbf{Decision Engine}\\\scriptsize decision\_engine.py};
+\node[box, fill=lightorange!15, draw=warning, left=1.2cm of dec]                    (risk) {\textbf{Risk Classifier}\\\scriptsize risk\_classifier.py};
+\node[box, fill=lightorange!15, draw=warning, right=1.2cm of dec]                   (exp)  {\textbf{Explanation Engine}\\\scriptsize explanation\_engine.py};
 
-% Tools vs Block
-\node[box, fill=lightgreen!15, draw=success, below left=1.4cm and 0.8cm of dec]    (tools) {\textbf{Tool Executor}\\\scriptsize gmail / generic / scheduler};
-\node[box, fill=lightred!15, draw=danger, below right=1.4cm and 0.8cm of dec]      (block) {\textbf{Blocked / Halted}\\\scriptsize Decision: reject / hold};
+% Execution layer (Symmetric Row below governance)
+\node[box, fill=lightgreen!15, draw=success, below left=1.5cm and 0.8cm of dec]    (tools) {\textbf{Tool Executor}\\\scriptsize gmail / generic / scheduler};
+\node[box, fill=lightred!15, draw=danger, below right=1.5cm and 0.8cm of dec]      (block) {\textbf{Blocked / Halted}\\\scriptsize Decision: reject / hold};
 
-% Audit Logger
-\node[box, fill=lightpurple!15, draw=critical, below=1.4cm of tools]               (audit) {\textbf{Audit Logger}\\\scriptsize agent/audit\_logger.py};
+% Telemetry Layer (Centered Symmetrical flow)
+\node[box, fill=lightpurple!15, draw=critical, below=2.6cm of dec]                  (audit) {\textbf{Audit Logger}\\\scriptsize agent/audit\_logger.py};
 
-% Storage backends
-\node[box, fill=codebg, draw=muted, below left=0.9cm and 1.0cm of audit]        (json)  {\textbf{JSON}\\\scriptsize audit\_log.json};
-\node[box, fill=codebg, draw=muted, below=0.9cm of audit]                        (csv)   {\textbf{CSV}\\\scriptsize audit\_log.csv};
-\node[box, fill=codebg, draw=muted, below right=0.9cm and 1.0cm of audit]       (db)    {\textbf{SQLite}\\\scriptsize audit\_log.db};
+% Storage backends (Symmetric row below Audit Logger)
+\node[box, fill=codebg, draw=muted, below=1.0cm of audit]                        (csv)   {\textbf{CSV}\\\scriptsize audit\_log.csv};
+\node[box, fill=codebg, draw=muted, left=1.2cm of csv]                           (json)  {\textbf{JSON}\\\scriptsize audit\_log.json};
+\node[box, fill=codebg, draw=muted, right=1.2cm of csv]                          (db)    {\textbf{SQLite}\\\scriptsize audit\_log.db};
 
 % Layers with backgrounds (using very light fills and distinct non-overlapping label options)
 \begin{scope}[on background layer]
@@ -57,12 +57,12 @@ Figure~\ref{fig:highlevel} presents the high-level system architecture.
 \end{scope}
 
 % Layer Labels placed neatly on the left margin to prevent any overlay text overlap
-\node[left=1.5cm of ui, font=\scriptsize\bfseries\color{accent}, align=right] {Layer 1:\\Presentation};
-\node[left=1.5cm of ctrl, font=\scriptsize\bfseries\color{warning}, align=right] {Layer 2:\\Orchestration};
-\node[left=1.5cm of dec, font=\scriptsize\bfseries\color{warning}, align=right] {Layer 3:\\Governance};
-\node[left=1.5cm of audit, font=\scriptsize\bfseries\color{critical}, align=right] {Layer 4:\\Telemetry};
+\node[left=2.2cm of ui, font=\scriptsize\bfseries\color{accent}, align=right] {Layer 1:\\Presentation};
+\node[left=2.2cm of ctrl, font=\scriptsize\bfseries\color{warning}, align=right] {Layer 2:\\Orchestration};
+\node[left=2.2cm of dec, font=\scriptsize\bfseries\color{warning}, align=right] {Layer 3:\\Governance};
+\node[left=2.2cm of audit, font=\scriptsize\bfseries\color{critical}, align=right] {Layer 4:\\Telemetry};
 
-% Arrows
+% Arrows (Clean, logical and symmetrical routing)
 \draw[arrow, color=accent]    (user) -- (ui);
 \draw[arrow, color=accent]    (ui) -- node[right, font=\tiny]{JSON stream} (ctrl);
 \draw[arrow, color=warning]   (ctrl) -- (risk);
@@ -120,16 +120,16 @@ CRITICAL & \textbf{Blocked — reject} & Execute terminal, transfer money, drop 
 Figure~\ref{fig:lifecycle} shows the deterministic decision tree for any incoming user request.
 
 % -------------------------------------------------------
-% FIGURE 2: Request Lifecycle Flowchart (Optimized to prevent node overlap)
+% FIGURE 2: Request Lifecycle Flowchart (Optimized with outside lines routing)
 % -------------------------------------------------------
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[
-  scale=0.85, transform shape,
+  scale=0.9, transform shape,
   node distance=0.5cm and 1.5cm,
-  startstop/.style={rectangle, rounded corners=10pt, draw, thick, minimum width=2.4cm, minimum height=0.6cm, align=center, font=\scriptsize\bfseries},
-  process/.style={rectangle, draw, thick, minimum width=2.6cm, minimum height=0.65cm, align=center, font=\scriptsize},
-  decision/.style={diamond, draw, thick, minimum width=2.8cm, minimum height=0.9cm, align=center, font=\scriptsize, aspect=2.2},
+  startstop/.style={rectangle, rounded corners=10pt, draw, thick, minimum width=2.6cm, minimum height=0.6cm, align=center, font=\scriptsize\bfseries},
+  process/.style={rectangle, draw, thick, minimum width=2.8cm, minimum height=0.65cm, align=center, font=\scriptsize},
+  decision/.style={diamond, draw, thick, minimum width=2.8cm, minimum height=1.0cm, align=center, font=\scriptsize, aspect=2.2},
   arrow/.style={-{Stealth[scale=1.0]}, thick}
 ]
 
@@ -138,20 +138,20 @@ Figure~\ref{fig:lifecycle} shows the deterministic decision tree for any incomin
 \node[process, fill=lightyellow!20, draw=warning, below=of typo]      (llm)    {LLM Intent Extraction\\\scriptsize(LLaMA 3.3 70B)};
 \node[decision, fill=white, draw=muted, below=of llm]              (tool?)  {Tool Call\\ Detected?};
 
-\node[process, fill=lightgreen!15, draw=success, right=1.5cm of tool?] (chat)   {Normal Chat\\ Response};
+\node[process, fill=lightgreen!15, draw=success, right=1.6cm of tool?] (chat)   {Normal Chat\\ Response};
 \node[process, fill=lightyellow!20, draw=warning, below=of tool?]      (risk)   {Risk Classification\\\scriptsize(risk\_classifier.py)};
 \node[decision, fill=white, draw=danger, below=of risk]            (tier)   {Risk Tier?};
 
-\node[process, fill=lightgreen!15, draw=success, right=1.5cm of tier]  (allow)  {Auto-Approve \&\\ Execute Tool};
+\node[process, fill=lightgreen!15, draw=success, right=1.6cm of tier]  (allow)  {Auto-Approve \&\\ Execute Tool};
 \node[process, fill=lightorange!15, draw=warning, below=of tier]       (hold)   {Halt Execution\\ Show Approval Card};
-\node[process, fill=lightred!15, draw=danger, left=1.5cm of tier]     (block)  {Block Action\\ CRITICAL Reject};
+\node[process, fill=lightred!15, draw=danger, left=1.6cm of tier]     (block)  {Block Action\\ CRITICAL Reject};
 
 \node[decision, fill=white, draw=warning, below=of hold]           (approved?) {User\\ Approved?};
-\node[process, fill=lightgreen!15, draw=success, right=1.5cm of approved?] (exec)  {Execute Tool\\ \& Synthesize};
-\node[process, fill=lightred!15, draw=danger, left=1.5cm of approved?] (skip)  {Remain\\ Blocked};
+\node[process, fill=lightgreen!15, draw=success, right=1.6cm of approved?] (exec)  {Execute Tool\\ \& Synthesize};
+\node[process, fill=lightred!15, draw=danger, left=1.6cm of approved?] (skip)  {Remain\\ Blocked};
 
-% Write Audit Log is positioned below approved? to prevent overlapping with hold/approved?
-\node[process, fill=lightpurple!15, draw=critical, below=1.0cm of approved?] (log)    {Write Audit Log\\\scriptsize(audit\_logger.py)};
+% Write Audit Log is positioned below approved? to prevent overlapping
+\node[process, fill=lightpurple!15, draw=critical, below=1.2cm of approved?] (log)    {Write Audit Log\\\scriptsize(audit\_logger.py)};
 \node[startstop, fill=lightblue!20, draw=accent, below=of log]        (end)    {Render Response\\ in Dashboard};
 
 % Arrows
@@ -167,10 +167,15 @@ Figure~\ref{fig:lifecycle} shows the deterministic decision tree for any incomin
 \draw[arrow]            (hold)      -- (approved?);
 \draw[arrow, color=success]  (approved?) -- node[above, font=\tiny]{Yes} (exec);
 \draw[arrow, color=danger]   (approved?) -- node[above, font=\tiny]{No}  (skip);
-\draw[arrow, color=critical] (allow)  |- (log);
-\draw[arrow, color=critical] (exec)   -- (log);
-\draw[arrow, color=critical] (block)  |- (log);
-\draw[arrow, color=critical] (skip)   -- (log);
+
+% Outside routing for allow and block to prevent crossing exec and skip
+\draw[arrow, color=critical] (allow.east) -- ++(1.0, 0) |- (log.east);
+\draw[arrow, color=critical] (block.west) -- ++(-1.0, 0) |- (log.west);
+
+% Direct bottom routing for exec and skip
+\draw[arrow, color=critical] (exec) |- (log);
+\draw[arrow, color=critical] (skip) |- (log);
+
 \draw[arrow, color=accent]   (chat)   |- (end);
 \draw[arrow]            (log)    -- (end);
 
@@ -184,14 +189,14 @@ Figure~\ref{fig:lifecycle} shows the deterministic decision tree for any incomin
 Figure~\ref{fig:modules} shows the module-level dependency graph of the Iris workspace.
 
 % -------------------------------------------------------
-% FIGURE 3: Module Dependency Graph (Sized to prevent overlap)
+% FIGURE 3: Module Dependency Graph (Optimized and Spaced Layout)
 % -------------------------------------------------------
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[
-  scale=0.85, transform shape,
+  scale=0.9, transform shape,
   node distance=0.6cm and 0.8cm,
-  mod/.style={rectangle, rounded corners=3pt, draw, thick, minimum width=2.4cm, minimum height=0.6cm, align=center, font=\scriptsize},
+  mod/.style={rectangle, rounded corners=3pt, draw, thick, minimum width=2.6cm, minimum height=0.6cm, align=center, font=\scriptsize},
   arrow/.style={-{Stealth[scale=0.9]}, thick, color=muted}
 ]
 
